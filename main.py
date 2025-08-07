@@ -39,3 +39,7 @@ def publish():
         return jsonify({"message": "Deployed!", "url": deploy_url})
     else:
         return jsonify({"error": "Deployment failed", "details": response.text}), 500
+
+# 🔽 Shto këtë poshtë
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
