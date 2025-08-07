@@ -1,11 +1,13 @@
 from flask import Flask, request, jsonify
-import zipfile, io, requests
+import zipfile
+import io
+import requests
+import os
 
 app = Flask(__name__)
 
-# Ndrysho këto sipas kredencialeve të tua Netlify
-NETLIFY_SITE_ID = 'ea2c01c6-c2b6-46e3-ab7a-135b45af3838'
-NETLIFY_API_TOKEN = 'nfp_G1fwnnWwkQPTB9xrFZ8QWXVdYxgYbxmW6f11'
+NETLIFY_SITE_ID = os.environ.get("NETLIFY_SITE_ID")
+NETLIFY_API_TOKEN = os.environ.get("NETLIFY_API_TOKEN")
 
 @app.route('/')
 def home():
@@ -17,13 +19,11 @@ def publish():
     if not html_content:
         return jsonify({"error": "No HTML provided"}), 400
 
-    # Krijo ZIP me index.html
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zipf:
         zipf.writestr("index.html", html_content)
     zip_buffer.seek(0)
 
-    # Dërgo në Netlify
     headers = {
         "Authorization": f"Bearer {NETLIFY_API_TOKEN}"
     }
@@ -42,4 +42,4 @@ def publish():
         return jsonify({"error": "Deployment failed", "details": response.text}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=10000)
