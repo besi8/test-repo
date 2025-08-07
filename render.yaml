@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: test-repo
+    name: webhook-publisher
     env: python
     buildCommand: ""
     startCommand: "python main.py"
     plan: free
     branch: main
-    autoDeploy: true
+    region: frankfurt
