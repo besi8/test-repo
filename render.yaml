@@ -3,7 +3,7 @@ services:
     name: webhook-publisher
     runtime: python
     buildCommand: ""
-    startCommand: "gunicorn main:app"
+    startCommand: "python main.py"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11
