@@ -1,13 +1,10 @@
 from flask import Flask, request, jsonify
-import zipfile
-import io
-import requests
-import os
+import zipfile, os, io, requests
 
 app = Flask(__name__)
 
-NETLIFY_SITE_ID = os.environ.get("NETLIFY_SITE_ID")
-NETLIFY_API_TOKEN = os.environ.get("NETLIFY_API_TOKEN")
+NETLIFY_SITE_ID = "ea2c01c6-c2b6-46e3-ab7a-135b45af3838"
+NETLIFY_API_TOKEN = "nfp_G1fwnnWwkQPTB9xrFZ8QWXVdYxgYbxmW6f11"
 
 @app.route('/')
 def home():
@@ -40,6 +37,3 @@ def publish():
         return jsonify({"message": "Deployed!", "url": deploy_url})
     else:
         return jsonify({"error": "Deployment failed", "details": response.text}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
