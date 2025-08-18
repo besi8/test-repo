@@ -1,9 +1,9 @@
 services:
   - type: web
     name: webhook-publisher
-    env: python
+    runtime: python
     buildCommand: ""
-    startCommand: "python main.py"
-    plan: free
-    branch: main
-    region: frankfurt
+    startCommand: "gunicorn main:app"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
