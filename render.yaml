@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: webhook-publisher
-    runtime: python
-    buildCommand: ""
-    startCommand: "gunicorn main:app"
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11
