@@ -1,47 +1,47 @@
-import os
-import zipfile
-import tempfile
-import requests
 from flask import Flask, request, jsonify
+import zipfile
+import io
+import requests
 
 app = Flask(__name__)
 
-NETLIFY_API_URL = "https://api.netlify.com/api/v1/sites"
-NETLIFY_SITE_ID = os.getenv("NETLIFY_SITE_ID")
-NETLIFY_ACCESS_TOKEN = os.getenv("NETLIFY_ACCESS_TOKEN")
+# Replace with your actual Netlify Site ID and API Token
+NETLIFY_SITE_ID = "ea2c01c6-c2b6-46e3-ab7a-135b45af3838"
+NETLIFY_API_TOKEN = "nfp_G1fwnnWwkQPTB9xrFZ8QWXVdYxgYbxmW6f11"
+
+@app.route("/")
+def home():
+    return "Webhook Publisher is Live!"
 
 @app.route("/publish", methods=["POST"])
 def publish():
     html_content = request.form.get("html")
     if not html_content:
-        return jsonify({"error": "Missing HTML content"}), 400
+        return jsonify({"error": "No HTML provided"}), 400
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        html_path = os.path.join(temp_dir, "index.html")
-        with open(html_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
+    # Create ZIP archive in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        zip_file.writestr("index.html", html_content)
+    zip_buffer.seek(0)
 
-        zip_path = os.path.join(temp_dir, "site.zip")
-        with zipfile.ZipFile(zip_path, "w") as zipf:
-            zipf.write(html_path, arcname="index.html")
+    # Send ZIP to Netlify
+    headers = {
+        "Authorization": f"Bearer {NETLIFY_API_TOKEN}"
+    }
 
-        with open(zip_path, "rb") as zip_file:
-            headers = {
-                "Authorization": f"Bearer {NETLIFY_ACCESS_TOKEN}"
-            }
-            files = {
-                "file": ("site.zip", zip_file, "application/zip")
-            }
-            response = requests.post(
-                f"{NETLIFY_API_URL}/{NETLIFY_SITE_ID}/deploys",
-                headers=headers,
-                files=files
-            )
+    files = {
+        "file": ("site.zip", zip_buffer, "application/zip")
+    }
 
-        if response.status_code == 200:
-            return jsonify({"message": "Deploy successful", "deploy_url": response.json().get("deploy_url")})
-        else:
-            return jsonify({"error": "Deploy failed", "details": response.text}), 500
+    netlify_url = f"https://api.netlify.com/api/v1/sites/{NETLIFY_SITE_ID}/deploys"
+    response = requests.post(netlify_url, headers=headers, files=files)
+
+    if response.status_code in [200, 201]:
+        deploy_url = response.json().get("deploy_ssl_url")
+        return jsonify({"message": "Deployed!", "url": deploy_url})
+    else:
+        return jsonify({"error": "Deployment failed", "details": response.text}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
