@@ -36,3 +36,6 @@ def publish():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # ky eshte kritike
     app.run(host="0.0.0.0", port=port)
+@app.route("/", methods=["GET"])
+def index():
+    return "✅ Aplikacioni është gjallë!"
