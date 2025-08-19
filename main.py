@@ -1,7 +1,10 @@
 from flask import Flask, request, jsonify
-import zipfile, os, io, requests
+import zipfile, io, requests
 
 app = Flask(__name__)
+
+NETLIFY_SITE_ID = "ea2c01c6-c2b6-46e3-ab7a-135b45af3838"
+NETLIFY_API_TOKEN = "nfp_G1fwnnWwkQPTB9xrFZ8QWXVdYxgYbxmW6f11"
 
 @app.route('/')
 def home():
@@ -19,22 +22,24 @@ def publish():
     zip_buffer.seek(0)
 
     headers = {
-        "Authorization": f"Bearer {os.environ.get('NETLIFY_API_TOKEN')}"
+        "Authorization": f"Bearer {NETLIFY_API_TOKEN}"
     }
-
     files = {
         'file': ('site.zip', zip_buffer, 'application/zip')
     }
-
-    site_id = os.environ.get("NETLIFY_SITE_ID")
-    url = f"https://api.netlify.com/api/v1/sites/{site_id}/deploys"
+    url = f"https://api.netlify.com/api/v1/sites/{NETLIFY_SITE_ID}/deploys"
     response = requests.post(url, headers=headers, files=files)
 
     if response.status_code in [200, 201]:
-        deploy_url = response.json().get('deploy_ssl_url')
-        return jsonify({"message": "Deployed!", "url": deploy_url})
+        return jsonify({
+            "message": "Deployed!",
+            "url": response.json().get('deploy_ssl_url')
+        })
     else:
-        return jsonify({"error": "Deployment failed", "details": response.text}), 500
+        return jsonify({
+            "error": "Deployment failed",
+            "details": response.text
+        }), 500
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host='0.0.0.0', port=10000)
