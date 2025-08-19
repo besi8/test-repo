@@ -18,7 +18,3 @@ def receive_html():
 @app.route('/', methods=['GET'])
 def home():
     return 'Service is running', 200
-
-# Ky rresht NUK duhet të përdoret në Render:
-# if __name__ == '__main__':
-#     app.run(debug=True)
