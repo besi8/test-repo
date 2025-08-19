@@ -1,52 +1,37 @@
 from flask import Flask, request, jsonify
-import zipfile
-import io
-import requests
-import os
+import logging
 
 app = Flask(__name__)
 
-# Merr variablat nga ambienti i Render
-NETLIFY_SITE_ID = os.getenv("NETLIFY_SITE_ID")
-NETLIFY_TOKEN = os.getenv("NETLIFY_TOKEN")
+# Aktivizo logimin në Render (ose lokalisht)
+logging.basicConfig(level=logging.INFO)
 
 @app.route("/", methods=["GET"])
 def index():
-    return "✅ Aplikacioni është gjallë!"
+    return jsonify({
+        "status": "✅ Aplikacioni është gjallë!",
+        "message": "Flask serveri është ngritur me sukses dhe pret kërkesa në /publish."
+    }), 200
 
 @app.route("/publish", methods=["POST"])
 def publish():
     html_content = request.form.get("html")
+
     if not html_content:
-        return jsonify({"error": "HTML content is missing"}), 400
-
-    # Krijo ZIP me index.html
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-        zip_file.writestr("index.html", html_content)
-    zip_buffer.seek(0)
-
-    # Dërgo në Netlify
-    url = f"https://api.netlify.com/api/v1/sites/{NETLIFY_SITE_ID}/deploys"
-    headers = {
-        "Authorization": f"Bearer {NETLIFY_TOKEN}"
-    }
-    files = {
-        "file": ("site.zip", zip_buffer, "application/zip")
-    }
-
-    response = requests.post(url, headers=headers, files=files)
-
-    if response.status_code in [200, 201]:
+        logging.warning("❌ Parametri 'html' mungon në kërkesë.")
         return jsonify({
-            "message": "Deploy successful",
-            "netlify_url": response.json().get("deploy_ssl_url")
-        }), 200
-    else:
-        return jsonify({
-            "error": "Deploy failed",
-            "details": response.text
-        }), 500
+            "error": "Parametri 'html' është i detyrueshëm."
+        }), 400
+
+    logging.info(f"✅ HTML u mor me sukses. Gjatësia: {len(html_content)} karaktere.")
+    
+    # Opsionale: këtu mund të ruash HTML-n ose të bësh publikimin në Netlify, etj.
+    
+    return jsonify({
+        "status": "success",
+        "message": "HTML u pranua me sukses.",
+        "preview": html_content[:60] + "..."  # tregojmë një pjesë të përmbajtjes
+    }), 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=10000)  # port i zakonshëm për Render (por jo i detyrueshëm)
