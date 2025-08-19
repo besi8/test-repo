@@ -1,47 +1,56 @@
 from flask import Flask, request, jsonify
+import os
 import zipfile
 import io
 import requests
+from datetime import datetime
 
 app = Flask(__name__)
 
-# Replace with your actual Netlify Site ID and API Token
-NETLIFY_SITE_ID = "ea2c01c6-c2b6-46e3-ab7a-135b45af3838"
-NETLIFY_API_TOKEN = "nfp_G1fwnnWwkQPTB9xrFZ8QWXVdYxgYbxmW6f11"
+NETLIFY_TOKEN = os.environ.get("NETLIFY_TOKEN")
+NETLIFY_ACCOUNT_ID = os.environ.get("NETLIFY_ACCOUNT_ID")
 
-@app.route("/")
-def home():
-    return "Webhook Publisher is Live!"
+@app.route("/", methods=["GET"])
+def index():
+    return "Webhook server is running."
 
 @app.route("/publish", methods=["POST"])
 def publish():
-    html_content = request.form.get("html")
-    if not html_content:
-        return jsonify({"error": "No HTML provided"}), 400
+    html = request.form.get("html")
+    if not html:
+        return jsonify({"error": "Missing HTML content"}), 400
 
-    # Create ZIP archive in memory
+    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    site_name = f"html-site-{timestamp}"
+
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-        zip_file.writestr("index.html", html_content)
+        zip_file.writestr("index.html", html)
     zip_buffer.seek(0)
 
-    # Send ZIP to Netlify
     headers = {
-        "Authorization": f"Bearer {NETLIFY_API_TOKEN}"
+        "Authorization": f"Bearer {NETLIFY_TOKEN}",
     }
 
     files = {
         "file": ("site.zip", zip_buffer, "application/zip")
     }
 
-    netlify_url = f"https://api.netlify.com/api/v1/sites/{NETLIFY_SITE_ID}/deploys"
-    response = requests.post(netlify_url, headers=headers, files=files)
+    response = requests.post(
+        f"https://api.netlify.com/api/v1/sites",
+        headers=headers,
+        files=files
+    )
 
-    if response.status_code in [200, 201]:
-        deploy_url = response.json().get("deploy_ssl_url")
-        return jsonify({"message": "Deployed!", "url": deploy_url})
+    if response.status_code == 200 or response.status_code == 201:
+        data = response.json()
+        return jsonify({
+            "site_name": data.get("name"),
+            "url": data.get("url"),
+            "deploy_url": data.get("deploy_url")
+        }), 200
     else:
-        return jsonify({"error": "Deployment failed", "details": response.text}), 500
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+        return jsonify({
+            "error": "Failed to publish to Netlify",
+            "details": response.json()
+        }), response.status_code
