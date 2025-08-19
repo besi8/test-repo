@@ -1,49 +1,40 @@
 from flask import Flask, request, jsonify
-import os
-import zipfile
-import tempfile
-import requests
+import zipfile, os, io, requests
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET"])
+@app.route('/')
 def home():
-    return "Webhook is running!"
+    return "Webhook Publisher is Live!"
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.get_json()
-    if not data or "html" not in data or "site_name" not in data or "netlify_token" not in data:
-        return jsonify({"error": "Missing required fields"}), 400
+@app.route('/publish', methods=['POST'])
+def publish():
+    html_content = request.form.get("html")
+    if not html_content:
+        return jsonify({"error": "No HTML provided"}), 400
 
-    html_content = data["html"]
-    site_name = data["site_name"]
-    netlify_token = data["netlify_token"]
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zipf:
+        zipf.writestr("index.html", html_content)
+    zip_buffer.seek(0)
 
-    try:
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            html_path = os.path.join(tmpdirname, "index.html")
-            with open(html_path, "w", encoding="utf-8") as f:
-                f.write(html_content)
+    headers = {
+        "Authorization": f"Bearer {os.environ.get('NETLIFY_API_TOKEN')}"
+    }
 
-            zip_path = os.path.join(tmpdirname, "site.zip")
-            with zipfile.ZipFile(zip_path, "w") as zipf:
-                zipf.write(html_path, "index.html")
+    files = {
+        'file': ('site.zip', zip_buffer, 'application/zip')
+    }
 
-            with open(zip_path, "rb") as f:
-                headers = {
-                    "Authorization": f"Bearer {netlify_token}"
-                }
-                response = requests.post(
-                    "https://api.netlify.com/api/v1/sites",
-                    headers=headers,
-                    files={"file": ("site.zip", f, "application/zip")},
-                    data={"name": site_name}
-                )
-            return jsonify(response.json()), response.status_code
+    site_id = os.environ.get("NETLIFY_SITE_ID")
+    url = f"https://api.netlify.com/api/v1/sites/{site_id}/deploys"
+    response = requests.post(url, headers=headers, files=files)
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    if response.status_code in [200, 201]:
+        deploy_url = response.json().get('deploy_ssl_url')
+        return jsonify({"message": "Deployed!", "url": deploy_url})
+    else:
+        return jsonify({"error": "Deployment failed", "details": response.text}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run()
