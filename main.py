@@ -8,11 +8,10 @@ from datetime import datetime
 app = Flask(__name__)
 
 NETLIFY_TOKEN = os.environ.get("NETLIFY_TOKEN")
-NETLIFY_ACCOUNT_ID = os.environ.get("NETLIFY_ACCOUNT_ID")
 
 @app.route("/", methods=["GET"])
-def index():
-    return "Webhook server is running."
+def home():
+    return "App is running."
 
 @app.route("/publish", methods=["POST"])
 def publish():
@@ -29,20 +28,16 @@ def publish():
     zip_buffer.seek(0)
 
     headers = {
-        "Authorization": f"Bearer {NETLIFY_TOKEN}",
+        "Authorization": f"Bearer {NETLIFY_TOKEN}"
     }
 
     files = {
         "file": ("site.zip", zip_buffer, "application/zip")
     }
 
-    response = requests.post(
-        f"https://api.netlify.com/api/v1/sites",
-        headers=headers,
-        files=files
-    )
+    response = requests.post("https://api.netlify.com/api/v1/sites", headers=headers, files=files)
 
-    if response.status_code == 200 or response.status_code == 201:
+    if response.status_code in [200, 201]:
         data = response.json()
         return jsonify({
             "site_name": data.get("name"),
