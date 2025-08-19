@@ -1,12 +1,10 @@
 from flask import Flask, request, jsonify
 import os
-import zipfile
 import tempfile
+import zipfile
 import requests
 
 app = Flask(__name__)
-
-NETLIFY_TOKEN = os.environ.get("NETLIFY_TOKEN")
 
 @app.route("/publish", methods=["POST"])
 def publish():
@@ -26,15 +24,15 @@ def publish():
         with open(zip_path, "rb") as f:
             response = requests.post(
                 "https://api.netlify.com/api/v1/sites",
-                headers={"Authorization": f"Bearer {NETLIFY_TOKEN}"},
+                headers={"Authorization": f"Bearer " + os.environ.get("NETLIFY_TOKEN")},
                 files={"file": ("site.zip", f)},
             )
 
         if response.status_code != 200:
-            return jsonify({"error": "Failed to upload to Netlify", "details": response.text}), 500
+            return jsonify({"error": response.text}), 500
 
-        data = response.json()
-        return jsonify({"url": data.get("url")})
+        return jsonify({"url": response.json().get("url")})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 5000))  # ky eshte kritike
+    app.run(host="0.0.0.0", port=port)
