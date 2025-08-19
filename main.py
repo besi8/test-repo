@@ -3,14 +3,11 @@ import zipfile, os, io, requests
 
 app = Flask(__name__)
 
-NETLIFY_SITE_ID = "ea2c01c6-c2b6-46e3-ab7a-135b45af3838"
-NETLIFY_API_TOKEN = "nfp_G1fwnnWwkQPTB9xrFZ8QWXVdYxgYbxmW6f11"
-
-@app.route('/')
+@app.route("/")
 def home():
     return "Webhook Publisher is Live!"
 
-@app.route('/publish', methods=['POST'])
+@app.route("/publish", methods=["POST"])
 def publish():
     html_content = request.form.get("html")
     if not html_content:
@@ -22,18 +19,18 @@ def publish():
     zip_buffer.seek(0)
 
     headers = {
-        "Authorization": f"Bearer {NETLIFY_API_TOKEN}"
+        "Authorization": f"Bearer {os.getenv('NETLIFY_API_TOKEN')}"
     }
 
     files = {
         'file': ('site.zip', zip_buffer, 'application/zip')
     }
 
-    url = f"https://api.netlify.com/api/v1/sites/{NETLIFY_SITE_ID}/deploys"
+    site_id = os.getenv('NETLIFY_SITE_ID')
+    url = f"https://api.netlify.com/api/v1/sites/{site_id}/deploys"
     response = requests.post(url, headers=headers, files=files)
 
     if response.status_code in [200, 201]:
-        deploy_url = response.json().get('deploy_ssl_url')
-        return jsonify({"message": "Deployed!", "url": deploy_url})
+        return jsonify({"message": "Deployed!", "url": response.json().get('deploy_ssl_url')})
     else:
         return jsonify({"error": "Deployment failed", "details": response.text}), 500
