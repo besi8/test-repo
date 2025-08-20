@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
 import zipfile, io, requests
-import os
 
 app = Flask(__name__)
 
@@ -10,32 +9,41 @@ NETLIFY_API_TOKEN = "nfp_G1fwnnWwkQPTB9xrFZ8QWXVdYxgYbxmW6f11"
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({
-        "status": "✅ Server is running",
-        "message": "Use POST /publish to deploy HTML to Netlify."
+        "status": "✅ Aplikacioni është gjallë!",
+        "message": "Flask serveri është ngritur dhe pret POST në /publish"
     })
 
 @app.route("/publish", methods=["POST"])
 def publish():
-    html = request.form.get("html")
-    if not html:
-        return jsonify({"error": "No HTML provided"}), 400
+    html_content = request.form.get("html")
 
+    if not html_content or "<html" not in html_content:
+        return jsonify({"error": "Invalid or missing HTML content"}), 400
+
+    # Create ZIP in memory
     zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w") as zf:
-        zf.writestr("index.html", html)
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        zipf.writestr("index.html", html_content)
     zip_buffer.seek(0)
 
-    response = requests.post(
-        f"https://api.netlify.com/api/v1/sites/{NETLIFY_SITE_ID}/deploys",
-        headers={"Authorization": f"Bearer {NETLIFY_API_TOKEN}"},
-        files={"file": ("site.zip", zip_buffer, "application/zip")}
-    )
+    # Prepare headers and upload to Netlify
+    headers = {
+        "Authorization": f"Bearer {NETLIFY_API_TOKEN}"
+    }
+    files = {
+        "file": ("site.zip", zip_buffer, "application/zip")
+    }
+    url = f"https://api.netlify.com/api/v1/sites/{NETLIFY_SITE_ID}/deploys"
+    response = requests.post(url, headers=headers, files=files)
 
     if response.status_code in [200, 201]:
-        return jsonify({"url": response.json().get("deploy_ssl_url")})
+        deploy_url = response.json().get("deploy_ssl_url")
+        return jsonify({
+            "message": "Deploy u krye me sukses!",
+            "url": deploy_url
+        }), 200
     else:
-        return jsonify({"error": "Deployment failed", "details": response.text}), 500
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+        return jsonify({
+            "error": "Deploy failed",
+            "details": response.text
+        }), 500
